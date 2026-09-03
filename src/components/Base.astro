@@ -1,0 +1,36 @@
+---
+import '@/styles/global.css';
+import Nav from '@/components/Nav.astro';
+
+interface Props {
+  titulo: string;
+  descripcion?: string;
+  ancho?: 'normal' | 'amplio';
+}
+
+const { titulo, descripcion, ancho = 'normal' } = Astro.props;
+const usuario = Astro.locals.user;
+const max = ancho === 'amplio' ? 'max-w-6xl' : 'max-w-3xl';
+---
+
+<!doctype html>
+<html lang="es-CL">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{titulo} · Cocina Semanal</title>
+    {descripcion && <meta name="description" content={descripcion} />}
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,400..700,0..100&family=Karla:wght@400..700&family=JetBrains+Mono:wght@400..600&display=swap"
+    />
+  </head>
+  <body class="min-h-screen bg-hueso-50 text-hueso-900 antialiased">
+    <Nav usuario={usuario} />
+    <main class={`mx-auto ${max} px-5 py-8`}>
+      <slot />
+    </main>
+  </body>
+</html>

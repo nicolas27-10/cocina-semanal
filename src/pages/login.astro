@@ -1,0 +1,54 @@
+---
+import Base from '@/components/Base.astro';
+
+const volver = Astro.url.searchParams.get('volver') ?? '/app';
+const enviado = Astro.url.searchParams.get('enviado') === '1';
+const error = Astro.url.searchParams.get('error');
+
+if (Astro.locals.user) return Astro.redirect(volver);
+---
+
+<Base titulo="Entrar">
+  <div class="mx-auto max-w-sm py-10">
+    <h1 class="text-2xl font-semibold">Entrar</h1>
+    <p class="mt-2 text-sm text-hueso-700">
+      Te llega un enlace al correo. Sin contrasenas que recordar.
+    </p>
+
+    {
+      enviado && (
+        <p class="mt-6 rounded-lg border border-albahaca-200 bg-albahaca-50 p-4 text-sm text-albahaca-700">
+          Listo, revisa tu correo. El enlace sirve una vez y vence en una hora.
+        </p>
+      )
+    }
+    {
+      error && (
+        <p class="mt-6 rounded-lg border border-ladrillo-500/30 bg-ladrillo-50 p-4 text-sm text-ladrillo-500">
+          {error}
+        </p>
+      )
+    }
+
+    <form method="post" action="/auth/entrar" class="mt-6 space-y-3">
+      <input type="hidden" name="volver" value={volver} />
+      <label class="block">
+        <span class="text-sm font-semibold">Correo</span>
+        <input
+          type="email"
+          name="email"
+          required
+          autocomplete="email"
+          placeholder="tu@correo.cl"
+          class="mt-1.5 w-full rounded-lg border border-hueso-300 bg-white px-3 py-2 outline-none focus:border-albahaca-600"
+        />
+      </label>
+      <button
+        type="submit"
+        class="w-full rounded-lg bg-albahaca-600 px-4 py-2.5 font-semibold text-white transition-colors hover:bg-albahaca-700"
+      >
+        Enviar enlace
+      </button>
+    </form>
+  </div>
+</Base>

@@ -1,0 +1,66 @@
+---
+import Base from '@/components/Base.astro';
+import ListaCompras from '@/islands/ListaCompras';
+import type { ItemLista } from '@/lib/tipos';
+
+const { id } = Astro.params;
+const { supabase } = Astro.locals;
+
+if (!id) return Astro.redirect('/app', 302);
+
+const { data: lista } = await supabase
+  .from('listas')
+  .select('id, generada, plan_id, planes(inicio_semana)')
+  .eq('id', id)
+  .maybeSingle();
+
+// RLS hace el trabajo: una lista ajena simplemente no existe para este usuario.
+if (!lista) return new Response('Lista no encontrada', { status: 404 });
+
+const { data: filas } = await supabase
+  .from('lista_items')
+  .select('id, etiqueta, pasillo, cantidad_base, base, origen, marcado, ingredientes(pack_base)')
+  .eq('lista_id', id)
+  .order('orden');
+
+const items: ItemLista[] = (filas ?? []).map((f) => ({
+  id: f.id as string,
+  etiqueta: f.etiqueta as string,
+  pasillo: f.pasillo as string,
+  cantidad_base: f.cantidad_base as number | null,
+  base: f.base as ItemLista['base'],
+  origen: f.origen as ItemLista['origen'],
+  marcado: f.marcado as boolean,
+  pack_base: (f as { ingredientes?: { pack_base?: number } | null }).ingredientes?.pack_base ?? null,
+}));
+
+const semana = (lista as { planes?: { inicio_semana?: string } | null }).planes?.inicio_semana ?? null;
+const generada = new Intl.DateTimeFormat('es-CL', {
+  dateStyle: 'long',
+  timeStyle: 'short',
+}).format(new Date(lista.generada as string));
+---
+
+<Base titulo="Lista de compras" ancho="normal">
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <p class="font-mono text-xs uppercase tracking-[0.14em] text-albahaca-600">Lista de compras</p>
+      <h1 class="mt-1.5 text-2xl font-semibold">Para la semana</h1>
+      <p class="mt-1 text-sm text-hueso-500">Generada el {generada}</p>
+    </div>
+    {
+      semana && (
+        <a
+          href={`/app/semana/${semana}`}
+          class="text-sm font-semibold text-albahaca-600 hover:underline"
+        >
+          &larr; Volver al plan
+        </a>
+      )
+    }
+  </div>
+
+  <div class="mt-6">
+    <ListaCompras client:load listaId={lista.id} itemsIniciales={items} />
+  </div>
+</Base>

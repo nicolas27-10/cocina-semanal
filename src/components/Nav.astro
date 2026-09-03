@@ -1,0 +1,58 @@
+---
+import type { User } from '@supabase/supabase-js';
+import { lunesDe } from '@/lib/semana';
+
+interface Props {
+  usuario: User | null;
+}
+const { usuario } = Astro.props;
+const semana = lunesDe();
+const ruta = Astro.url.pathname;
+
+const enlaces = [
+  { href: `/app/semana/${semana}`, texto: 'Semana', activo: ruta.startsWith('/app/semana') },
+  { href: '/app/recetas', texto: 'Recetas', activo: ruta.startsWith('/app/recetas') },
+];
+---
+
+<header class="border-b border-hueso-200 bg-white">
+  <div class="mx-auto flex max-w-6xl items-center gap-6 px-5 py-3">
+    <a href={usuario ? `/app/semana/${semana}` : '/'} class="font-display text-lg font-semibold tracking-tight">
+      Cocina<span class="text-albahaca-600">Semanal</span>
+    </a>
+
+    {usuario && (
+      <nav class="flex gap-1 text-sm">
+        {enlaces.map((e) => (
+          <a
+            href={e.href}
+            class:list={[
+              'rounded-md px-3 py-1.5 transition-colors',
+              e.activo
+                ? 'bg-albahaca-50 font-semibold text-albahaca-700'
+                : 'text-hueso-700 hover:bg-hueso-100',
+            ]}
+            aria-current={e.activo ? 'page' : undefined}
+          >
+            {e.texto}
+          </a>
+        ))}
+      </nav>
+    )}
+
+    <div class="ml-auto text-sm">
+      {usuario ? (
+        <form method="post" action="/auth/salir">
+          <button
+            type="submit"
+            class="rounded-md px-3 py-1.5 text-hueso-500 hover:bg-hueso-100 hover:text-hueso-900"
+          >
+            Salir
+          </button>
+        </form>
+      ) : (
+        <a href="/login" class="font-semibold text-albahaca-600 hover:underline">Entrar</a>
+      )}
+    </div>
+  </div>
+</header>

@@ -1,0 +1,94 @@
+---
+import Base from '@/components/Base.astro';
+import PlanificadorSemana from '@/islands/PlanificadorSemana';
+import { esSemanaValida, lunesDe, sumarSemanas, rangoSemana, diasDeSemana } from '@/lib/semana';
+import type { EntradaPlan, RecetaResumen } from '@/lib/tipos';
+
+const { semana } = Astro.params;
+const { supabase, user } = Astro.locals;
+
+if (!esSemanaValida(semana)) {
+  return Astro.redirect(`/app/semana/${lunesDe()}`, 302);
+}
+
+// upsert en vez de select-then-insert: unique(user_id, inicio_semana) hace
+// que abrir la misma semana dos veces en dos pestanas no cree dos planes.
+const { data: plan, error: errorPlan } = await supabase
+  .from('planes')
+  .upsert({ user_id: user!.id, inicio_semana: semana }, { onConflict: 'user_id,inicio_semana' })
+  .select('id')
+  .single();
+
+if (errorPlan || !plan) {
+  throw new Error(`No se pudo abrir la semana: ${errorPlan?.message}`);
+}
+
+const [{ data: filasEntradas }, { data: filasRecetas }, { data: ultimaLista }] = await Promise.all([
+  supabase
+    .from('plan_entradas')
+    .select('id, dia, momento, receta_id, texto_libre, porciones_override, recetas(titulo)')
+    .eq('plan_id', plan.id),
+  supabase
+    .from('recetas')
+    .select('id, slug, titulo, porciones, min_prep, min_coccion, etiquetas, origen')
+    .order('titulo'),
+  supabase
+    .from('listas')
+    .select('id, generada')
+    .eq('plan_id', plan.id)
+    .order('generada', { ascending: false })
+    .limit(1)
+    .maybeSingle(),
+]);
+
+const entradas: EntradaPlan[] = (filasEntradas ?? []).map((f) => ({
+  id: f.id as string,
+  dia: f.dia as string,
+  momento: f.momento as EntradaPlan['momento'],
+  receta_id: f.receta_id as string | null,
+  texto_libre: f.texto_libre as string | null,
+  porciones_override: f.porciones_override as number | null,
+  titulo: (f as { recetas?: { titulo?: string } | null }).recetas?.titulo ?? null,
+}));
+
+const recetas = (filasRecetas ?? []) as RecetaResumen[];
+const dias = diasDeSemana(semana!);
+const anterior = sumarSemanas(semana!, -1);
+const siguiente = sumarSemanas(semana!, 1);
+---
+
+<Base titulo={`Semana del ${rangoSemana(semana!)}`} ancho="amplio">
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <p class="font-mono text-xs uppercase tracking-[0.14em] text-albahaca-600">Plan semanal</p>
+      <h1 class="mt-1.5 text-2xl font-semibold">{rangoSemana(semana!)}</h1>
+    </div>
+    <div class="flex items-center gap-1 text-sm">
+      <a
+        href={`/app/semana/${anterior}`}
+        class="rounded-md border border-hueso-300 px-3 py-1.5 hover:bg-hueso-100"
+        rel="prev">&larr; Anterior</a
+      >
+      <a
+        href={`/app/semana/${lunesDe()}`}
+        class="rounded-md border border-hueso-300 px-3 py-1.5 hover:bg-hueso-100">Hoy</a
+      >
+      <a
+        href={`/app/semana/${siguiente}`}
+        class="rounded-md border border-hueso-300 px-3 py-1.5 hover:bg-hueso-100"
+        rel="next">Siguiente &rarr;</a
+      >
+    </div>
+  </div>
+
+  <div class="mt-6">
+    <PlanificadorSemana
+      client:load
+      planId={plan.id}
+      dias={dias}
+      entradasIniciales={entradas}
+      recetas={recetas}
+      listaExistente={ultimaLista?.id ?? null}
+    />
+  </div>
+</Base>

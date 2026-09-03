@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------
+   Sistema de diseno. Todo el color y la tipografia sale de aca.
+   ------------------------------------------------------------ */
+@theme {
+  --font-sans: "Karla", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* neutros con sesgo verde: elegidos, no heredados */
+  --color-hueso-50:  #f7f9f6;
+  --color-hueso-100: #eef2ec;
+  --color-hueso-200: #dde4da;
+  --color-hueso-300: #c2cdbe;
+  --color-hueso-500: #75857a;
+  --color-hueso-700: #414c45;
+  --color-hueso-900: #1a211c;
+
+  /* albahaca: el acento */
+  --color-albahaca-50:  #eaf4ee;
+  --color-albahaca-200: #b6dcc5;
+  --color-albahaca-500: #2f8459;
+  --color-albahaca-600: #1f6b46;
+  --color-albahaca-700: #175637;
+
+  /* semanticos, separados del acento */
+  --color-alerta-500: #a9711a;
+  --color-alerta-50:  #fbf1de;
+  --color-ladrillo-500: #a1442f;
+  --color-ladrillo-50:  #f8e8e3;
+}
+
+html {
+  color-scheme: light;
+  background: var(--color-hueso-50);
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-hueso-900);
+  background: var(--color-hueso-50);
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-variation-settings: "SOFT" 30;
+  text-wrap: balance;
+}
+
+/* Cifras que se comparan en columna se alinean */
+.tabular { font-variant-numeric: tabular-nums; }
+
+:focus-visible {
+  outline: 2px solid var(--color-albahaca-600);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
