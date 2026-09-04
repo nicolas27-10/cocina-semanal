@@ -11,13 +11,24 @@ export const DIAS = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabad
 export const MOMENTOS = ['desayuno', 'almuerzo', 'cena', 'snack'] as const;
 export type Momento = (typeof MOMENTOS)[number];
 
-/** 'YYYY-MM-DD' del lunes de la semana que contiene la fecha dada. */
-export function lunesDe(fecha: Date = new Date()): string {
-  const d = new Date(Date.UTC(fecha.getFullYear(), fecha.getMonth(), fecha.getDate()));
-  const dow = d.getUTCDay(); // 0 = domingo
+/**
+ * 'YYYY-MM-DD' del lunes de la semana que contiene la fecha dada.
+ *
+ * Sin argumento, "fecha" es el instante actual y su dia civil se lee en hora
+ * LOCAL (asi "hoy" es hoy en Chile). Con argumento, se asume ya anclado a
+ * medianoche UTC (viene de un `${iso}T00:00:00Z`), asi que su dia civil se lee
+ * en UTC. Leer siempre con los getters locales rompia esto: medianoche UTC
+ * cae la noche anterior en hora de Chile (UTC-3/-4), asi que un lunes pasado
+ * como argumento se leia como domingo y `lunesDe` lo movia una semana atras.
+ */
+export function lunesDe(fecha?: Date): string {
+  const base = fecha
+    ? new Date(Date.UTC(fecha.getUTCFullYear(), fecha.getUTCMonth(), fecha.getUTCDate()))
+    : new Date(Date.UTC(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()));
+  const dow = base.getUTCDay(); // 0 = domingo
   const offset = dow === 0 ? -6 : 1 - dow;
-  d.setUTCDate(d.getUTCDate() + offset);
-  return d.toISOString().slice(0, 10);
+  base.setUTCDate(base.getUTCDate() + offset);
+  return base.toISOString().slice(0, 10);
 }
 
 /** Las 7 fechas 'YYYY-MM-DD' de la semana, desde el lunes recibido. */

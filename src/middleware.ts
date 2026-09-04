@@ -16,7 +16,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
   // getUser() valida el JWT contra Supabase en cada request. Es una llamada
   // de red por navegacion: el precio de no confiar en una cookie que el
   // navegador puede editar. No lo cambies por getSession().
-  const { data } = await supabase.auth.getUser();
+  const { data, error } = await supabase.auth.getUser();
+  if (error && error.name !== 'AuthSessionMissingError') {
+    // Sin este log, un refresh token invalidado (rotacion, reuse-interval de
+    // Supabase, o sesion revocada) se ve igual que "nunca inicio sesion": un
+    // 302 a /login sin pista de por que. Con esto queda en la consola del
+    // servidor la razon real la proxima vez que pase.
+    console.error(`[auth] getUser() fallo en ${context.url.pathname}: ${error.name} - ${error.message}`);
+  }
   context.locals.user = data.user ?? null;
 
   const { pathname } = context.url;
