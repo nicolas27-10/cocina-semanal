@@ -68,3 +68,40 @@ export function bloqueUsuario(
 
   return partes.join('\n');
 }
+
+/**
+ * Segundo paso: dadas las recetas ya definidas (sin ingredientes todavia),
+ * pide los ingredientes de cada una. Existe como llamada separada porque el
+ * responseSchema de Gemini rechaza (400 INVALID_ARGUMENT, sin mas detalle)
+ * un schema que combina "recetas" y "ingredientes anidados" en un mismo
+ * arbol — la complejidad total del schema supera algun limite no
+ * documentado de la API. Partido en dos, cada schema es simple y funciona.
+ */
+export function bloqueIngredientes(
+  recetas: { indice: number; titulo: string; resumen: string; porciones: number }[],
+  pedido: z.infer<typeof PedidoGenerar>,
+  despensa: ItemDespensa[],
+): string {
+  const partes: string[] = [
+    'Ya se definieron estas recetas (no cambies el titulo ni la idea, dales sus ingredientes):',
+    ...recetas.map(
+      (r) => `[indice ${r.indice}] ${r.titulo} (${r.porciones} porciones) — ${r.resumen}`,
+    ),
+  ];
+
+  if (pedido.usar_despensa && despensa.length > 0) {
+    partes.push(
+      `Ya hay en casa (usalo antes de que se pierda): ` +
+        despensa.map((d) => `${d.nombre} ${d.cantidad} ${d.unidad}`).join(', '),
+    );
+  }
+
+  if (pedido.reusar_ingredientes && recetas.length > 1) {
+    partes.push(
+      `Maximiza cuantos ingredientes se repiten entre estas recetas, de modo que la ` +
+        `compra sea corta y no sobren perecibles a medio usar.`,
+    );
+  }
+
+  return partes.join('\n');
+}

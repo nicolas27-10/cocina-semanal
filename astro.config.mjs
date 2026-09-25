@@ -21,11 +21,11 @@ export default defineConfig({
     schema: {
       PUBLIC_SUPABASE_URL: envField.string({ context: 'client', access: 'public' }),
       PUBLIC_SUPABASE_ANON_KEY: envField.string({ context: 'client', access: 'public' }),
-      ANTHROPIC_API_KEY: envField.string({ context: 'server', access: 'secret', optional: true }),
+      GEMINI_API_KEY: envField.string({ context: 'server', access: 'secret', optional: true }),
       IA_MODELO: envField.string({
         context: 'server',
         access: 'secret',
-        default: 'claude-haiku-4-5',
+        default: 'gemini-3.1-flash-lite',
       }),
     },
   },

@@ -1,6 +1,7 @@
 ---
 import Base from '@/components/Base.astro';
 import GeneradorReceta from '@/islands/GeneradorReceta';
+import { lunesDe } from '@/lib/semana';
 import type { RecetaResumen } from '@/lib/tipos';
 
 const { supabase } = Astro.locals;
@@ -22,8 +23,12 @@ const recetas = (filas ?? []) as (RecetaResumen & { resumen: string | null })[];
   <p class="font-mono text-xs uppercase tracking-[0.14em] text-albahaca-600">Recetario</p>
   <h1 class="mt-1.5 text-2xl font-semibold">Recetas</h1>
   <p class="mt-2 max-w-[60ch] text-hueso-700">
-    Cada receta guarda sus ingredientes vinculados al catalogo, con cantidad y unidad. Eso es lo
-    que permite sumarlas despues en una sola lista de compras.
+    Contale a la IA que se te antoja cocinar — aunque sea solo una idea — y arma la receta con
+    ingredientes vinculados al catalogo. Despues asignas cada receta a un dia en
+    <a href={`/app/semana/${lunesDe()}`} class="font-semibold text-albahaca-600 underline">
+      el plan de la semana
+    </a>
+    y ahi se calcula la lista de compras, restando lo que ya tienes en la despensa.
   </p>
 
   <div class="mt-6">

@@ -104,11 +104,11 @@ cp .env.example .env
 |---|---|
 | `PUBLIC_SUPABASE_URL` | Supabase → Project Settings → API |
 | `PUBLIC_SUPABASE_ANON_KEY` | idem |
-| `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com) (opcional: sin esto todo funciona menos generar recetas) |
-| `IA_MODELO` | opcional, por defecto un modelo de la gama económica |
+| `GEMINI_API_KEY` | [aistudio.google.com/apikey](https://aistudio.google.com/apikey), gratis con cuenta de Google personal, sin tarjeta (opcional: sin esto todo funciona menos generar recetas) |
+| `IA_MODELO` | opcional, por defecto `gemini-3.1-flash-lite` (tier gratuito) |
 
 El prefijo `PUBLIC_` no es cosmético: `astro.config.mjs` declara las variables
-con `envField`, y `ANTHROPIC_API_KEY` está marcada
+con `envField`, y `GEMINI_API_KEY` está marcada
 `context: 'server', access: 'secret'`. Si algún día la importas por accidente
 desde un island, **el build falla** en vez de publicar tu key.
 
@@ -189,8 +189,20 @@ Las cuatro rutas que existen tienen cada una una razón concreta:
 
 ## La capa de IA
 
-Toda la "capa de IA" son ~90 líneas en `src/lib/ia/`. **No hay** vector store,
-embeddings, RAG, ni framework de agentes. Es un POST con un JSON Schema.
+Toda la "capa de IA" es `src/lib/ia/`. **No hay** vector store, embeddings,
+RAG, ni framework de agentes. Son dos POST con un JSON Schema cada uno.
+
+¿Por qué dos? El `responseSchema` de Gemini responde `400 INVALID_ARGUMENT`
+(sin más detalle en el mensaje) ante un schema que combina las recetas
+(título, resumen, tiempos, etiquetas, pasos) con su array de ingredientes
+anidado dentro de cada una — la complejidad total del árbol supera algún
+límite no documentado de la API. Confirmado a mano contra la API real: cada
+mitad por separado funciona sin problema; juntas, truenan.
+`generarRecetas()` pide primero las recetas (con un `indice` por receta) y
+después, en una segunda llamada, los ingredientes en una lista **plana** con
+`receta_idx` apuntando a ese índice — y los reagrupa antes de validar con el
+mismo `SemanaIA` de siempre. El endpoint y la UI no saben que son dos
+llamadas; ven una función que devuelve `SemanaIA`, igual que antes.
 
 Tres decisiones que hacen la diferencia:
 
@@ -204,14 +216,20 @@ Igual se verifica al volver: si inventó un slug, se reporta en pantalla y
 ese mismo objeto se usa para dos cosas:
 
 ```ts
-z.toJSONSchema(SemanaIA)   // → el input_schema de la tool que el modelo llena
+z.toJSONSchema(SemanaIA)   // → se traduce al responseSchema que el modelo llena
 SemanaIA.safeParse(input)  // → valida lo que volvió, antes de tocar la BD
 ```
 
-Con `tool_choice: { type: 'tool', name: 'entregar_recetas' }` el modelo está
-**obligado** a responder con esa forma; no puede contestar en prosa. Y los
-`.describe()` de cada campo no son comentarios: viajan al JSON Schema y el
-modelo los lee. Son prompt.
+El JSON Schema de Zod no es exactamente lo que espera Gemini — su
+`responseSchema` es un subconjunto de OpenAPI 3.0 con particularidades propias
+(`type` es un enum, `minItems`/`maxLength` son string, no existe
+`exclusiveMinimum`). `src/lib/ia/cliente.ts` lo traduce con `esquemaGemini()`.
+Recortar de más ahí no rompe nada: con `responseMimeType: 'application/json'` +
+`responseSchema` el modelo está **obligado** a responder en esa forma y no
+puede contestar en prosa, y `SemanaIA.safeParse()` vuelve a aplicar los
+límites finos (largo de texto, rangos numéricos) al volver. Los `.describe()`
+de cada campo no son comentarios: viajan al schema y el modelo los lee. Son
+prompt.
 
 Los `.max()` tampoco son cosméticos. Un modelo puede escribir `500 kg de sal`
 con total seguridad; sin el límite, eso entra a tu lista.
@@ -223,11 +241,12 @@ repita proteína dos días seguidos y que parta de la despensa. Resultado: la
 compra es corta y no sobra media bolsa de cilantro. Eso es lo que un modelo hace
 bien y a mano cuesta.
 
-El bloque del catálogo va con `cache_control: 'ephemeral'`: no cambia entre
-llamadas, así que se cachea y se deja de pagar.
-
-**Costo real**: una receta son ~1.500 tokens de salida. Una semana completa,
-centavos de dólar. Para una casa esto son cifras despreciables.
+**Costo real**: `gemini-3.1-flash-lite` tiene tier gratuito en Google AI
+Studio (cuenta personal, sin tarjeta). Para el volumen de una casa — unas
+pocas recetas por semana — no debería salir del límite gratis, ni siquiera
+haciendo dos llamadas por generación. Si algún día lo supera, el único
+cambio es `GEMINI_API_KEY` y `IA_MODELO`; el resto de la app no sabe qué
+proveedor hay detrás.
 
 ---
 
@@ -315,8 +334,8 @@ no se pueden sumar, y la app no sirve para nada.
 |---|---|
 | Supabase | plan gratis (500 MB, auth incluida) |
 | Netlify | plan gratis |
-| API del modelo | centavos al mes |
-| **Total** | **~USD 0** |
+| API del modelo | Gemini, tier gratuito |
+| **Total** | **USD 0** |
 
 ---
 

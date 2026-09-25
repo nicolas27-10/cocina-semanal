@@ -27,7 +27,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
   const { data: ingredientes } = await supabase.from('ingredientes').select('id, slug');
   const porSlug = new Map((ingredientes ?? []).map((i) => [i.slug as string, i.id as string]));
 
-  const guardadas: { id: string; slug: string; titulo: string }[] = [];
+  const guardadas: {
+    id: string;
+    slug: string;
+    titulo: string;
+    porciones: number;
+    min_prep: number;
+    min_coccion: number;
+    etiquetas: string[];
+    origen: string;
+  }[] = [];
 
   for (const receta of parseado.data.recetas) {
     const faltantes = receta.ingredientes.filter((i) => !porSlug.has(i.slug));
@@ -78,7 +87,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
       return responder(500, { error: errorIngredientes.message });
     }
 
-    guardadas.push({ id: fila.id, slug: fila.slug, titulo: fila.titulo });
+    guardadas.push({
+      id: fila.id,
+      slug: fila.slug,
+      titulo: fila.titulo,
+      porciones: receta.porciones,
+      min_prep: receta.min_prep,
+      min_coccion: receta.min_coccion,
+      etiquetas: receta.etiquetas,
+      origen: 'ia',
+    });
   }
 
   return responder(201, { recetas: guardadas });

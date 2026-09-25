@@ -13,6 +13,7 @@ import {
 } from '@dnd-kit/core';
 import { MOMENTOS, type Momento, fechaCorta, DIAS } from '@/lib/semana';
 import type { EntradaPlan, RecetaResumen } from '@/lib/tipos';
+import GeneradorReceta from '@/islands/GeneradorReceta';
 
 type Props = {
   planId: string;
@@ -39,11 +40,13 @@ export default function PlanificadorSemana({
   listaExistente,
 }: Props) {
   const [entradas, setEntradas] = useState<EntradaPlan[]>(entradasIniciales);
+  const [recetasState, setRecetasState] = useState<RecetaResumen[]>(recetas);
   const [busqueda, setBusqueda] = useState('');
   const [todosLosMomentos, setTodosLosMomentos] = useState(false);
   const [seleccionada, setSeleccionada] = useState<RecetaResumen | null>(null);
   const [arrastrando, setArrastrando] = useState<RecetaResumen | null>(null);
   const [generando, setGenerando] = useState(false);
+  const [mostrarGenerador, setMostrarGenerador] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const sensores = useSensors(
@@ -62,13 +65,13 @@ export default function PlanificadorSemana({
 
   const filtradas = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
-    if (!q) return recetas;
-    return recetas.filter(
+    if (!q) return recetasState;
+    return recetasState.filter(
       (r) =>
         r.titulo.toLowerCase().includes(q) ||
         r.etiquetas.some((t) => t.toLowerCase().includes(q)),
     );
-  }, [recetas, busqueda]);
+  }, [recetasState, busqueda]);
 
   const usadas = new Set(entradas.map((e) => e.receta_id).filter(Boolean));
 
@@ -157,17 +160,25 @@ export default function PlanificadorSemana({
   }
 
   function onDragStart(evento: DragStartEvent) {
-    const receta = recetas.find((r) => r.id === evento.active.id);
+    const receta = recetasState.find((r) => r.id === evento.active.id);
     setArrastrando(receta ?? null);
   }
 
   function onDragEnd(evento: DragEndEvent) {
     setArrastrando(null);
     if (!evento.over) return;
-    const receta = recetas.find((r) => r.id === evento.active.id);
+    const receta = recetasState.find((r) => r.id === evento.active.id);
     if (!receta) return;
     const [dia, momento] = String(evento.over.id).split('|');
     if (dia && momento) void asignar(dia, momento as Momento, receta);
+  }
+
+  function manejarGuardadoIA(nuevas: RecetaResumen[]) {
+    setRecetasState((prev) => [...nuevas, ...prev]);
+    setMostrarGenerador(false);
+    // Con una sola receta generada, la dejamos preseleccionada: al usuario
+    // solo le queda tocar la casilla del dia. Con varias, elige el mismo.
+    if (nuevas.length === 1) setSeleccionada(nuevas[0]);
   }
 
   const comidasPuestas = entradas.filter((e) => e.receta_id).length;
@@ -271,38 +282,66 @@ export default function PlanificadorSemana({
 
         {/* ---------- recetas ---------- */}
         <aside className="lg:sticky lg:top-4 lg:self-start">
-          <h2 className="text-sm font-semibold">Tus recetas</h2>
-          <input
-            type="search"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar…"
-            className="mt-2 w-full rounded-lg border border-hueso-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-albahaca-600"
-          />
-
-          {recetas.length === 0 ? (
-            <p className="mt-3 rounded-lg border border-dashed border-hueso-300 p-3 text-sm text-hueso-500">
-              Todavia no tienes recetas.{' '}
-              <a href="/app/recetas" className="font-semibold text-albahaca-600 underline">
-                Genera las primeras
-              </a>
-              .
-            </p>
+          {mostrarGenerador ? (
+            <div>
+              <h2 className="text-sm font-semibold">Generar con IA</h2>
+              <p className="mt-1 text-[13px] text-hueso-500">
+                Contale que se te antoja. Al guardar queda lista para arrastrar a la semana.
+              </p>
+              <div className="mt-2">
+                <GeneradorReceta
+                  abiertoInicial
+                  alGuardar={manejarGuardadoIA}
+                  alCancelar={() => setMostrarGenerador(false)}
+                />
+              </div>
+            </div>
           ) : (
-            <ul className="mt-2 max-h-[60vh] space-y-1.5 overflow-y-auto pr-1">
-              {filtradas.map((receta) => (
-                <li key={receta.id}>
-                  <ChipReceta
-                    receta={receta}
-                    usada={usadas.has(receta.id)}
-                    seleccionada={seleccionada?.id === receta.id}
-                    onSeleccionar={() =>
-                      setSeleccionada((prev) => (prev?.id === receta.id ? null : receta))
-                    }
-                  />
-                </li>
-              ))}
-            </ul>
+            <>
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-sm font-semibold">Tus recetas</h2>
+                <button
+                  type="button"
+                  onClick={() => setMostrarGenerador(true)}
+                  className="shrink-0 rounded-md bg-albahaca-600 px-2.5 py-1 text-[12px] font-semibold text-white hover:bg-albahaca-700"
+                >
+                  + Generar con IA
+                </button>
+              </div>
+              <input
+                type="search"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Buscar…"
+                className="mt-2 w-full rounded-lg border border-hueso-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-albahaca-600"
+              />
+
+              {recetasState.length === 0 ? (
+                <p className="mt-3 rounded-lg border border-dashed border-hueso-300 p-3 text-sm text-hueso-500">
+                  Todavia no tienes recetas. Solo tienes que contarle a la IA que se te antoja
+                  arriba, o{' '}
+                  <a href="/app/recetas" className="font-semibold text-albahaca-600 underline">
+                    escribir una a mano
+                  </a>
+                  .
+                </p>
+              ) : (
+                <ul className="mt-2 max-h-[60vh] space-y-1.5 overflow-y-auto pr-1">
+                  {filtradas.map((receta) => (
+                    <li key={receta.id}>
+                      <ChipReceta
+                        receta={receta}
+                        usada={usadas.has(receta.id)}
+                        seleccionada={seleccionada?.id === receta.id}
+                        onSeleccionar={() =>
+                          setSeleccionada((prev) => (prev?.id === receta.id ? null : receta))
+                        }
+                      />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
           )}
         </aside>
       </div>

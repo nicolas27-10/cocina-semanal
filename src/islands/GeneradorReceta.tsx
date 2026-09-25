@@ -12,15 +12,35 @@ type RecetaIA = {
   ingredientes: IngredienteIA[];
 };
 type Respuesta = { criterio: string; recetas: RecetaIA[]; desconocidos: string[] };
+type RecetaGuardada = {
+  id: string;
+  slug: string;
+  titulo: string;
+  porciones: number;
+  min_prep: number;
+  min_coccion: number;
+  etiquetas: string[];
+  origen: string;
+};
 
 const EJEMPLOS = [
+  'pollo con verduras para hoy y mañana',
   'algo rapido con lo que sobro del asado',
   'cuatro cenas de olla para una semana fria',
   'almuerzos vegetarianos que no sean ensalada',
 ];
 
-export default function GeneradorReceta() {
-  const [abierto, setAbierto] = useState(false);
+type Props = {
+  /** Si se pasa, al guardar se llama esto en vez de recargar la pagina. */
+  alGuardar?: (recetas: RecetaGuardada[]) => void;
+  /** Si se pasa, se ofrece un boton "Cancelar" que llama esto. */
+  alCancelar?: () => void;
+  /** true = arranca con el formulario abierto (util embebido en otra pagina). */
+  abiertoInicial?: boolean;
+};
+
+export default function GeneradorReceta({ alGuardar, alCancelar, abiertoInicial }: Props) {
+  const [abierto, setAbierto] = useState(abiertoInicial ?? false);
   const [pedido, setPedido] = useState('');
   const [porciones, setPorciones] = useState(4);
   const [cantidad, setCantidad] = useState(1);
@@ -81,6 +101,12 @@ export default function GeneradorReceta() {
           ? `Ingredientes fuera del catalogo: ${cuerpo.slugs.join(', ')}`
           : (cuerpo.error ?? 'No se pudieron guardar.'),
       );
+      return;
+    }
+
+    const { recetas: guardadas } = (await res.json()) as { recetas: RecetaGuardada[] };
+    if (alGuardar) {
+      alGuardar(guardadas);
       return;
     }
     window.location.reload();
@@ -192,7 +218,7 @@ export default function GeneradorReceta() {
           </button>
           <button
             type="button"
-            onClick={() => setAbierto(false)}
+            onClick={() => (alCancelar ? alCancelar() : setAbierto(false))}
             className="text-sm text-hueso-500 hover:text-hueso-900"
           >
             Cancelar
